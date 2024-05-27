@@ -1,5 +1,8 @@
 (in-package #:nodgui-test)
 
+(defun get-current-time-seconds ()
+  (float (/ (get-internal-real-time) internal-time-units-per-second)))
+
 (defun get-thread-by-name (thread-name)
   (loop for thread in (sb-thread:list-all-threads)
         when (string= thread-name (sb-thread:thread-name thread))
@@ -19,7 +22,89 @@
   `(sb-thread:make-thread
     (lambda ()
       (with-nodgui ()
+        (wm-title *tk* "Window")
         ,@body))))
+
+(defun event-loop-example ()
+  (with-nodgui-thread
+    (wm-title *tk* "event-example.lisp")
+    (let ((my-style (make-instance 'style))
+          (interrupt nil)
+          (button (make-instance 'button :text "Start!"))
+          (label (make-instance 'label :text "No Answer"))
+          (progressbar (make-instance 'progressbar :orientation :horizontal
+                                                   :mode :determinate
+                                                   :maximum 2000
+                                                   :length 100)))
+
+      (defparameter cool-style my-style)
+      (grid button 0 1 :padx 5 :pady 5)
+      (grid label 0 0 :padx 5 :pady 5)
+      (grid progressbar 1 0 :padx 5 :pady 5)
+
+      (labels ((start ()
+                 (setf (text button) "Stop!"
+                       (command button) #'stop)
+                 (setf (text label) "Working ...")
+                 (setf interrupt nil)
+                 (after 1 #'next))
+               (stop ()
+                 (setf interrupt t))
+               (next (&optional (count 0))
+                 (configure progressbar :value count)
+                 (if interrupt                                  ; 1
+                     (result "")
+                     (nodgui:after 1                                   ; 2
+                                   #'(lambda ()
+                                       (if (= count 2000)
+                                           (result 42)
+                                           (next (+ 1 count)))))))
+               (result (answer)
+                 (configure progressbar :value 0)
+                 (setf (text button) "Start!"
+                       (command button) #'start)
+                 (setf (text label)
+                       (if (numberp answer)
+                           (format nil "Answer: ~a" answer)
+                           "No answer"))))
+        (setf (command button) #'start)))))
+
+(defun paint-example ()
+  (with-nodgui-thread
+    (let* ((last-x 0)
+           (last-y 0)
+           (colour :blue)
+           (canvas (make-instance 'canvas :width 500 :height 400 :background :gray75))  ; 1
+           (add-line #'(lambda (x y)
+                         (configure (make-line canvas (list last-x last-y x y))         ; 2
+                                    :fill colour
+                                    :width 5
+                                    :tag "currentline")                                 ; 3
+                         (setf last-x x
+                               last-y y))))
+
+      (grid canvas 0 0 :sticky "news")
+      (grid-columnconfigure *tk* 0 :weight 1)
+      (grid-rowconfigure *tk* 0 :weight 1)
+
+      (bind canvas "<1>" #'(lambda (evt) (setf last-x (event-x evt)                     ; 4
+                                               last-y (event-y evt))))
+      (bind canvas "<B1-Motion>"                                                        ; 5
+            #'(lambda (evt) (funcall add-line (event-x evt) (event-y evt))
+                (tag-configure canvas "currentline" :width (+ 5 (* 5 (sin (get-current-time-seconds)))))))
+      (bind canvas "<B1-ButtonRelease>"                                                 ; 6
+            #'(lambda (evt) (tag-configure canvas "currentline" :width 1)))
+
+      ;; add three rectangles, and option to change colour
+      (let ((r (make-rectangle canvas 10 10 30 30)))
+        (configure r :fill :red)
+        (bind r "<1>" #'(lambda (evt) (setf colour :red))))                             ; 7
+      (let ((r (make-rectangle canvas 10 35 30 55)))
+        (configure r :fill :blue)
+        (bind r "<1>" #'(lambda (evt) (setf colour :blue))))
+      (let ((r (make-rectangle canvas 10 60 30 80)))
+        (configure r :fill :black)
+        (bind r "<1>" #'(lambda (evt) (setf colour :black)))))))
 
 (defun image-selection-example ()
   (with-nodgui-thread ()

@@ -25,6 +25,20 @@
         (wm-title *tk* "Window")
         ,@body))))
 
+(defun kj-to-kcal ()
+  (with-nodgui-thread ()
+    (wm-title *tk* "kj to kcal")
+    (let* ((content (make-instance 'frame))
+           (kj-entry (make-instance 'entry :master content :width 12))
+           (kcal-label (make-instance 'label :master content :text (format nil "0 kj == 0 kcal")))
+           (btn-calculate (make-instance 'button :master content :text "Calculate" :command (lambda () (let ((kj-value (or (ignore-errors (parse-integer (text kj-entry))) 0)))
+                                                                                                         (setf (text kcal-label) (format nil "~a kj == ~a kcal" kj-value (float (/ kj-value 4.184)))))))))
+      (grid content 0 0 :sticky "nsew")
+      (grid kj-entry 0 0 :sticky "nw")
+      (grid kcal-label 1 0)
+      (grid btn-calculate 2 0)
+      )))
+
 (defun event-loop-example ()
   (with-nodgui-thread
     (wm-title *tk* "event-example.lisp")

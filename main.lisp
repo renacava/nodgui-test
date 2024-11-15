@@ -22,6 +22,8 @@
   `(sb-thread:make-thread
     (lambda ()
       (with-nodgui ()
+        (icon-photo *tk* (make-image "3.jpg"))
+
         (wm-title *tk* "Window")
         ,@body))))
 
@@ -182,8 +184,9 @@
       (grid-rowconfigure *tk* 0 :weight 1)
 
       (let* ((feet-entry (make-instance 'entry :master content :width 60)) ; 4
-             (metres-label (make-instance 'label :master content :text "" :font "Courier a"))
-             (quit-button (make-quit-button)))
+             (metres-label (make-instance 'label :master content :text "" :font "Courier"))
+             ;;(quit-button (make-quit-button))
+             )
         (flet ((calculate () ; 5
                  (let ((feet (ignore-errors (eval (read-from-string (format nil "(progn (in-package :nodgui-test) ~a)"(text feet-entry)))))))
                    (setf (text metres-label)
